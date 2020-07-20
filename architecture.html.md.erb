@@ -41,6 +41,30 @@ which can be found in their respective sections.
 | tsdb                     | <ul> <li> All exporter vms </li> </ul>                        |<ul> <li>9090</li></ul>  |    All exporter vms including blackbox-exporter and the corresponding exporter vms from the Exporter tile for the runtime (TAS and/or TKG-i)  |
 | tsdb (pks cluster discovery) | For each cluster: <ul> <li> Kube API Server </li><li> Kube Controller Manager </li> <li> Kube Scheduler</li> <li> ETCD (telegraf output plugin) </li> </ul> | <ul> <li>8443</li><li>10252</li><li>10251</li><li>10200</li></ul>  |    These ports are only needed if configuring PKS Cluster Discovery  |
 
+#### <a id='steps-for-configuring-ports-on-nsx-t'></a> Steps for configuring ports on NSX-T
+
+1. Log into the NSX-T UI and figure out the IP
+    of your cluster's API virtual server
+1. Do an API call to get that virtual server's JSON:
+    ```
+    curl -u 'nsx-t-username:nsx-t-password' https://NSX-MGR/api/v1/loadbalancer/virtual-servers/VIRTUAL-SERVER-UUID
+    ```
+
+   Where:
+   - `NSX-MGR` is the OpsMan deployed to NSX-T (? this is probs wrong)
+   - `VIRTUAL-SERVER-UUID` is the unique ID that identifies the thing
+
+1. Modify that JSON to have the additional ports that Healthwatch needs,
+    and do a PUT to the API to update the virtual server
+    ```
+    curl -X PUT -u 'nsx-t-username:nsx-t-password' https://NSX-MGR/api/v1/loadbalancer/virtual-servers/VIRTUAL-SERVER-UUID -X 'X-Allow-Overwrite: true' -d 'MODIFIED-JSON-DATA'
+    ```
+
+   Where:
+   - `NSX-MGR`
+   - `VIRTUAL-SERVER-UUID`
+   - `MODIFIED-JSON-DATA`
+
 ## <a id='healthwatch-tas'></a> Healthwatch Exporter for TAS for VMs
 
 The Healthwatch Exporter for TAS for VMs installs up to three VMs.
