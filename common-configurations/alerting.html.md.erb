@@ -3,80 +3,120 @@ title: Alerting
 owner: Healthwatch
 ---
 
-This topic explains a shift in how Healthwatch handles alerting.
-This document aims to explain how to configure alerting
-in the Healthwatch tile in Ops Manager.
+This topic explains how to configure alerting in Healthwatch.
 
-## <a id='configure'></a>Alerting
 
-To configure alerting for the Healthwatch tile:
+## <a id='overview'></a> Overview
 
-1. Click the **Healthwatch** tile on the Ops Manager Installation Dashboard.
-1. Navigate to **Alertmanager Configuration**. 
-1. For **Alerting Rules YAML**, enter YAML to configure alerts for your foundation.
-  Use PromQL expressions to define the alerts.
-  See [Configure Your Alerting Rules](#alerting-rules) below.
-1. For **Routing Rules YAML**, enter YAML that contains
-    the notification destinations for specific alerts on your foundation.
-    See [Configure Your Routing Rules](#routing-rules) below.
-1. Create the Alert Receivers that are referenced by the routing rules YAML.
-  See [Configure Alert Receivers](#alert-receivers) below.
+Alerting with Prometheus is separated into two parts. Alerting rules in Prometheus servers send alerts to an Alertmanager. The Alertmanager then manages those alerts, including silencing, inhibition, aggregation and sending out notifications via methods such as email, on-call notification systems, and chat platforms.
+
+What is Alertmanager? (Prometheus feature; packaged component to work with TAS)
+The Alertmanager handles alerts sent by client applications such as the Prometheus server. It takes care of deduplicating, grouping, and routing them to the correct receiver integration such as email, PagerDuty, or OpsGenie. It also takes care of silencing and inhibition of alerts. [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+
+To configure alerting in Healthwatch, you must configure alerting rules, routing rules, and alert receivers.
+
+
+## <a id='configure'></a> Configure Alerting
+
+To configure alerting:
+
+1. Navigate to the Ops Manager Installation Dashboard.
+
+1. Click the **Healthwatch** tile.
+
+1. Select **Alertmanager Configuration**.
+
+1. In the **Alerting Rules YAML** field, provide the rule statements that define which alerts
+the Alertmanager sends to your alert receivers in YAML format:
+  1. The following YAML files contain alerting rules for VMware Tanzu Application Service for
+  VMs (TAS for VMs) and VMware Tanzu Kubernetes Grid Integrated Edition (TKGI). Choose the
+  YAML file that corresponds to your runtime:
+    * [TAS for VMs](tas_alerting_rules.yml)
+    * [TKGI](tkg-i_alerting_rules.yml)
+  1. Modify the YAML file according to the observability requirements for your foundation.
+  1. Paste the contents of the YAML file into the **Alerting Rules YAML** field.
+  <br>
+  <br>
+  For more information, see [Alerting Rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
+  in the Prometheus documentation.
+
+1. In the **Routing Rules YAML** field, provide the route block that defines where the Alertmanager
+sends alerts, how frequently the Alertmanager sends alerts, and how the Alertmanager groups
+alerts together. For information about the parameters you must provide, see [<route>]
+(https://prometheus.io/docs/alerting/latest/configuration/#route) in _Configuration_ in the
+Prometheus documentation. You must define all `route` configuration parameters.
+
+1. Configure the alert receivers that you specified in **Routing Rules YAML** in the previous
+step. Alert receivers define where the Alertmanager sends alerts. Configure the sections for
+the receivers you want to use:
+  <p class='note'><strong>Note:</strong> If you want to provide authentication and TLS settings
+    for your receiver, you must provide them (where?). If the base YAML configuration for your receiver includes fields for authentication and TLS settings, do not include them in the <strong>(?)</strong> field when configuring your receiver in the Healthwatch tile.</p>
+    * **For email receivers:**
+      1. Click **Add**.
+      1. In the **?** field, provide the YAML For more information about the YAML structure for this field, see [<email_config>](https://prometheus.io/docs/alerting/latest/configuration/#email_config) in _Configuration_ in the Prometheus documentation.
+      1. ???
+      1. Profit!
+    * **For PagerDuty receivers:**
+      1. Click **Add**.
+      1. ??? For more information about the YAML structure for this field, see [<pagerduty_config>](https://prometheus.io/docs/alerting/latest/configuration/#pagerdu ty_config) in _Configuration_ in the Prometheus documentation.
+      1. ???
+      1. Profit!
+    * **For Slack receivers:**
+      1. Click **Add**.
+      1. ??? For more information about the YAML structure for this field, see [<slack_config>](https://prometheus.io/docs/alerting/latest/configuration/#slack_config) in _Configuration_ in the Prometheus documentation.
+      1. ???
+      1. Profit!
+    * **For webhook receivers:**
+      1. Click **Add**.
+      1. In the **?** field, For more information about the YAML structure for this field, see [<webhook_config>](https://prometheus.io/docs/alerting/latest/configuration/#webhook_config) in _Configuration_ in the Prometheus documentation.
+      1. ???
+      1. Profit!
+      <p class='note'><strong>Note:</strong> You can also configure custom notification integrations that are not natively supported by the Alertmanager through the webhook receiver. For more information about configuring custom notification integrations, see <a href="https://prometheus.io/docs/alerting/latest/configuration/#webhook_config>"><webhook_config></a> in <em>Configuration</em> in the Prometheus documentation.</p>
+    <br>
+    <br>
+  If you configure two or more receivers with the same name, the Alertmanager merges them into into a single receiver. For example, if you configure:
+      * Two email receivers named "Foundation" with distinct email addresses
+      * One PagerDuty receiver named "Foundation"
+      * One email receiver named "Clusters"
+  <br>
+  Then the Alertmanager merges them into the following receivers:
+      * One receiver named "Foundation" containing two email configurations and a PagerDuty configuration
+      * One receiver named "Clusters" containing one email configuration
+  <br>
+  The example below shows how the Alertmanager combines receivers in its YAML configuration:
+
+        ```
+        receivers:
+        - name: 'Foundation'
+          email_configs:
+          - to: 'operator1@example.org'
+            from: global.smtp_from
+            smarthost: global.smtp_smarthost
+            hello: global.smtp_hello
+            html: '{{ template "email.default.html" . }}'
+            text: "This is an alert."
+          - to: 'operator2@example.org'
+            from: global.smtp_from
+            smarthost: global.smtp_smarthost
+            hello: global.smtp_hello
+            html: '{{ template "email.default.html" . }}'
+            text: "This is an alert."
+          pagerduty_configs:
+          - service_key: operator-1-key
+            url: global.pagerduty_url
+            client: '{{ template "pagerduty.default.client" . }}'
+            client_url: '{{ template "pagerduty.default.clientURL" . }}'
+            description: '{{ template "pagerduty.default.description" .}}'
+            severity: 'error'
+
+        - name: 'Clusters'
+          email_configs:
+          - to: 'operator1@example.org'
+            from: global.smtp_from
+            smarthost: global.smtp_smarthost
+            hello: global.smtp_hello
+            html: '{{ template "email.default.html" . }}'
+            text: "This is an alert."
+        ```
+
 1. Click **Save**.
-
-## <a id='alerting-rules'></a>Configure Your Alerting Rules
-
-We have created Prometheus alerting rules files for TAS and for TKG-i
-that can be used as a starting point for observing your foundation:
-
-- <a href="tas_alerting_rules.yml" target="_blank">TAS</a>
-- <a href="tkg-i_alerting_rules.yml" target="_blank">TKG-i</a>
-
-Choose the file that correlates to your foundation,
-modify that file according to your observability requirements,
-and paste the contents into the **Alerting Rules YAML** field.
-
-For more information, see [Alerting Rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) in the
-Prometheus documentation.
-
-## <a id='routing-rules'></a>Configure Your Routing Rules
-
-Routing rules define where Alertmanager sends specific triggering alerts
-as well as configuration around alerts such as frequency and grouping.
-Provide the entire `route` structure.
-
-For example:
-
-```
-receiver: 'default-receiver'
-group_wait: 30s
-group_interval: 5m
-repeat_interval: 4h
-group_by: [cluster, alertname]
-```
-
-For more information, see the Alertmanager configuration in the [Prometheus](https://prometheus.io/docs/alerting/latest/configuration/#route) documentation.
-
-## <a id='alert-receivers'></a>Configure Alert Receivers
-
-Alert Receivers define the notification channels that are used by the routing rules YAML.
-
-The supported receivers are Email, PagerDuty, Slack, and Webhook.
-For each receiver, the base configuration can be provided in the **Receiver Configuration** field.
-
-For information about the structure of the YAML for this field, see the [Prometheus](https://prometheus.io/docs/alerting/latest/configuration/#receiver) documentation.
-
-Authentication and TLS settings are optional and are provided separately.
-Do not include the associated fields in the provided base receiver configuration.
-
-Any receivers provided with the same name are merged into a single receiver.
-
-For example:
-
-- Two email receivers, each named "Foundation" with distinct email addresses
-- One email receiver named "Clusters"
-- One PagerDuty receiver named "Foundation"
-
-The example above results in the following:
-
-- One receiver named "Foundation" containing two email configurations and a PagerDuty configuration
-- One receiver named "Clusters" containing one email configuration
